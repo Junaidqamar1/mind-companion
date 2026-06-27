@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MindCompanion - Competitive Exam Student Wellness Tracker</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+            },
+            slate: {
+              950: '#0f172a',
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'float': 'float 6s ease-in-out infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-10px)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Gen AI SDK Loading via ESM CDN -->
+  <script type="module">
+    import { GoogleGenAI } from 'https://esm.sh/@google/genai';
+    window.GoogleGenAI = GoogleGenAI;
+    console.log('Google GenAI unified SDK imported successfully via ESM CDN.');
+  </script>
+
+  <!-- Alpine.js CDN -->
+  <script src="https://unpkg.com/alpinejs" defer></script>
+
+  <style>
+    [x-cloak] { display: none !important; }
+    
+    /* Box breathing custom circle transitions */
+    .inhale-circle {
+      transform: scale(1.6);
+      background-color: rgba(13, 148, 136, 0.25); /* teal-600 with opacity */
+      border-color: rgba(13, 148, 136, 0.8);
+      transition: all 4000ms linear;
+    }
+    .hold-circle {
+      transform: scale(1.6);
+      background-color: rgba(67, 56, 202, 0.25); /* indigo-700 with opacity */
+      border-color: rgba(67, 56, 202, 0.8);
+      transition: all 4000ms linear;
+    }
+    .exhale-circle {
+      transform: scale(0.85);
+      background-color: rgba(14, 165, 233, 0.2); /* sky-500 with opacity */
+      border-color: rgba(14, 165, 233, 0.8);
+      transition: all 4000ms linear;
+    }
+    .hold2-circle {
+      transform: scale(0.85);
+      background-color: rgba(100, 116, 139, 0.2); /* slate-500 with opacity */
+      border-color: rgba(100, 116, 139, 0.8);
+      transition: all 4000ms linear;
+    }
+    .idle-circle {
+      transform: scale(1.0);
+      background-color: rgba(226, 232, 240, 0.5);
+      border-color: rgba(203, 213, 225, 1);
+      transition: all 1000ms ease;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col md:flex-row antialiased selection:bg-indigo-100 selection:text-indigo-900" x-data="appState()">
+
+  <!-- ONBOARDING GATEKEEPER SCREEN (Rendered if hasProfile is false) -->
+  <div x-show="!hasProfile" x-cloak class="fixed inset-0 bg-gradient-to-tr from-slate-100 via-indigo-50/40 to-teal-50/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl border border-slate-100 w-full max-w-lg p-6 sm:p-8 shadow-2xl space-y-6">
+      
+      <!-- Greeting and Logo header -->
+      <div class="text-center space-y-3">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-indigo-100 mx-auto">
+          <svg class="w-7 h-7 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path>
+          </svg>
+        </div>
+        <div>
+          <h2 class="font-extrabold text-2xl text-slate-900 tracking-tight">Set Up Your Exam Sanctuary</h2>
+          <p class="text-xs text-slate-500 font-semibold mt-1">Tell us about your preparation track so we can personalize your wellness experience.</p>
+        </div>
+      </div>
+
+      <!-- Form Setup -->
+      <form @submit.prevent="submitOnboarding()" class="space-y-4 text-xs font-semibold text-slate-700">
+        
+        <!-- Name Input -->
+        <div class="space-y-1.5">
+          <label class="block text-slate-600">Full Name</label>
+          <input type="text" x-model="onboardName" required 
+                 placeholder="e.g. Aarav Mehta" 
+                 class="w-full p-3 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-sm font-semibold placeholder-slate-400 focus:outline-none transition" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Target Exam Track Dropdown -->
+          <div class="space-y-1.5">
+            <label class="block text-slate-600">Target Examination</label>
+            <select x-model="onboardTrack" required
+                    class="w-full p-3 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-sm font-semibold focus:outline-none transition">
+              <option value="JEE">JEE (Engineering)</option>
+              <option value="NEET">NEET (Medical)</option>
+              <option value="UPSC">UPSC (Civil Services)</option>
+              <option value="GATE">GATE (Postgrad Engineering)</option>
+              <option value="CAT">CAT (Management)</option>
+            </select>
+          </div>
+
+          <!-- Study Hours Input -->
+          <div class="space-y-1.5">
+            <label class="block text-slate-600">Daily Study Target (Hours)</label>
+            <input type="number" x-model.number="onboardHours" required min="1" max="18"
+                   placeholder="e.g. 8" 
+                   class="w-full p-3 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-sm font-semibold focus:outline-none transition" />
+          </div>
+        </div>
+
+        <!-- Stressor Tags Dropdown -->
+        <div class="space-y-1.5">
+          <label class="block text-slate-600">Current Primary Stressor</label>
+          <select x-model="onboardStressor" required
+                  class="w-full p-3 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-sm font-semibold focus:outline-none transition">
+            <option value="Mock Test Scores">Mock Test Scores & Ranking</option>
+            <option value="Backlog Anxiety">Backlog Accumulation & Syllabus Load</option>
+            <option value="Parental Pressure">Parental Expectations & Pressure</option>
+            <option value="Social Isolation">Isolation & Peer Comparison</option>
+          </select>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="pt-4 flex flex-col sm:flex-row items-center gap-3">
+          <button type="submit" 
+                  class="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 text-sm transition">
+            Start Journey 🚀
+          </button>
+          
+          <button type="button" @click="loadJEEAspirantDemo()"
+                  class="w-full py-3 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200/50 font-bold rounded-xl text-xs transition flex items-center justify-center space-x-2">
+            <span>Demo Profile: JEE Aspirant</span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APP INTERFACE (Rendered if hasProfile is true) -->
+  <template x-if="hasProfile">
+    <div class="flex flex-col md:flex-row flex-1 min-w-0 min-h-screen">
+      <!-- Sidebar Navigation -->
+      <aside class="w-full md:w-64 bg-white border-r border-slate-100 flex flex-col shrink-0 md:sticky md:top-0 md:h-screen z-30 shadow-sm">
+        <!-- Header/Logo -->
+        <div class="p-6 flex items-center justify-between border-b border-slate-50">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-indigo-100">
+              <!-- Logo Icon (Mind / Lotus Shape) -->
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path>
+              </svg>
+            </div>
+            <div>
+              <h1 class="font-bold text-lg text-slate-900 tracking-tight">MindCompanion</h1>
+              <p class="text-xs font-semibold text-teal-600 tracking-wider uppercase">Exam Sanctuary</p>
+            </div>
+          </div>
+          
+          <!-- Mobile Menu Button (hidden on desktop) -->
+          <button class="md:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-600" @click="mobileMenuOpen = !mobileMenuOpen">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Nav Items (Collapsible on mobile) -->
+        <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto" :class="{'block': mobileMenuOpen, 'hidden': !mobileMenuOpen && !window.matchMedia('(min-width: 768px)').matches}">
+          <!-- Profile Card Mini -->
+          <div class="mb-6 p-4 bg-slate-50/80 rounded-2xl border border-slate-100 flex items-center justify-between group">
+            <div class="flex items-center space-x-3 min-w-0">
+              <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold border border-indigo-200 shrink-0">
+                <span x-text="studentName.split(' ').map(n => n[0]).join('')">JS</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-slate-900 truncate" x-text="studentName">Guest Student</p>
+                <p class="text-xs text-slate-500 font-medium truncate" x-text="examTrack + ' Aspirant'"></p>
+              </div>
+            </div>
+            <!-- Settings Gear Icon -->
+            <button @click="settingsOpen = true" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition shrink-0" title="Settings">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+            </button>
+          </div>
+
+          <button @click="setView('dashboard')" 
+                  :class="activeView === 'dashboard' ? 'bg-indigo-50 text-indigo-950 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'"
+                  class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition duration-150 group">
+            <svg :class="activeView === 'dashboard' ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'" class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+            </svg>
+            <span class="text-sm">Dashboard</span>
+          </button>
+
+          <button @click="setView('journal')" 
+                  :class="activeView === 'journal' ? 'bg-indigo-50 text-indigo-950 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'"
+                  class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition duration-150 group">
+            <svg :class="activeView === 'journal' ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'" class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+            </svg>
+            <span class="text-sm">Daily Mind-Dump</span>
+          </button>
+
+          <button @click="setView('coping')" 
+                  :class="activeView === 'coping' ? 'bg-indigo-50 text-indigo-950 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'"
+                  class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition duration-150 group">
+            <svg :class="activeView === 'coping' ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'" class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            <span class="text-sm">AI Coping Deck</span>
+          </button>
+
+          <!-- Horizontal Divider -->
+          <div class="h-px bg-slate-100 my-4"></div>
+
+          <!-- Quick Demo Access & Settings -->
+          <div class="space-y-2">
+            <button @click="loadJEEAspirantDemo()" class="w-full py-2.5 px-4 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200/50 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 shadow-sm">
+              <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+              <span>Demo: JEE Aspirant</span>
+            </button>
+
+            <button @click="settingsOpen = true" class="w-full flex items-center space-x-3 px-4 py-2.5 text-slate-500 hover:text-slate-800 rounded-xl text-xs font-semibold hover:bg-slate-50 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+              <span>Gemini API Settings</span>
+            </button>
+          </div>
+        </nav>
+
+        <!-- Footer of Sidebar -->
+        <div class="p-6 border-t border-slate-50 text-center" :class="{'block': mobileMenuOpen, 'hidden': !mobileMenuOpen && !window.matchMedia('(min-width: 768px)').matches}">
+          <p class="text-xxs text-slate-400 font-medium">MindCompanion © 2026</p>
+          <p class="text-xxs text-indigo-400/80 mt-0.5">Hackathon Build v2.1</p>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="flex-1 flex flex-col min-w-0 bg-slate-50/50 p-4 sm:p-6 md:p-8 overflow-y-auto">
+        
+        <!-- Warning reminder banner for missing API Key -->
+        <div x-show="!geminiApiKey" x-cloak class="mb-6 p-4 bg-amber-50 border border-amber-200/60 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm">
+          <div class="flex items-center space-x-3 text-amber-800">
+            <span class="text-xl">⚠️</span>
+            <div class="text-xs">
+              <p class="font-bold">Live GenAI Integration Disabled</p>
+              <p class="text-amber-700 font-semibold">Gemini API Key is missing. The app is running in Heuristic Simulation mode. Click settings to add a live key.</p>
+            </div>
+          </div>
+          <button @click="settingsOpen = true" class="px-4 py-2 bg-amber-600 hover:bg-amber-750 text-white rounded-xl text-xs font-bold transition shrink-0 shadow-sm shadow-amber-200">
+            Configure API Key
+          </button>
+        </div>
+
+        <!-- Header Toolbar -->
+        <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 pb-4 border-b border-slate-100">
+          <div>
+            <h2 class="text-xs uppercase tracking-widest text-slate-400 font-bold" x-text="activeViewName"></h2>
+            <div class="flex items-center space-x-3 mt-1">
+              <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight" x-text="greetingMessage">Good afternoon!</h1>
+              <!-- Top Toolbar Settings Link -->
+              <button @click="settingsOpen = true" class="p-1 rounded-full text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition" title="Open API Settings">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Motivational Quote Banner -->
+          <div class="mt-4 sm:mt-0 p-3 sm:p-4 bg-gradient-to-r from-indigo-50/60 to-teal-50/60 border border-indigo-100/50 rounded-2xl max-w-md shadow-sm">
+            <p class="text-xs sm:text-sm font-semibold text-slate-700 italic flex items-start">
+              <span class="text-indigo-400 text-lg leading-none mr-2 font-serif">“</span>
+              <span x-text="motivationalQuote">One mock test does not define your future. Focus on concepts, not outcomes.</span>
+              <span class="text-indigo-400 text-lg leading-none ml-1 font-serif">”</span>
+            </p>
+          </div>
+        </header>
+
+        <!-- VIEWS CONTAINER -->
+        <div class="flex-1">
+
+          <!-- ================== VIEW: DASHBOARD ================== -->
+          <section x-show="activeView === 'dashboard'" x-transition:enter="transition ease-out duration-300" class="space-y-6">
+            
+            <!-- Quick Stats Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <!-- Card 1: Stress Meter -->
+              <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+                <div class="space-y-1">
+                  <span class="text-xs font-bold uppercase text-slate-400 tracking-wider">Current Stress Level</span>
+                  <div class="flex items-baseline space-x-1.5">
+                    <span class="text-3xl font-extrabold text-slate-900" x-text="todayStressLevel + '/10'"></span>
+                    <span class="text-xs font-semibold" :class="getStressColorClass(todayStressLevel)" x-text="getStressLabel(todayStressLevel)"></span>
+                  </div>
+                  <p class="text-xs text-slate-500 font-medium">Updated from your last entry</p>
+                </div>
+                <div class="w-14 h-14 rounded-2xl flex items-center justify-center" :class="getStressBgClass(todayStressLevel)">
+                  <svg class="w-8 h-8" :class="getStressTextClass(todayStressLevel)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Card 2: Current Track -->
+              <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+                <div class="space-y-1">
+                  <span class="text-xs font-bold uppercase text-slate-400 tracking-wider">Target Examination</span>
+                  <div class="flex items-center space-x-2">
+                    <span class="text-3xl font-extrabold text-slate-900" x-text="examTrack"></span>
+                    <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xxs font-extrabold rounded-md uppercase tracking-wider">Aspirant</span>
+                  </div>
+                  <p class="text-xs text-slate-500 font-medium" x-text="studyHours + ' hours daily study target'"></p>
+                </div>
+                <div class="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Card 3: Days Active -->
+              <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between sm:col-span-2 lg:col-span-1">
+                <div class="space-y-1">
+                  <span class="text-xs font-bold uppercase text-slate-400 tracking-wider">Wellness Consistency</span>
+                  <div class="flex items-baseline space-x-1">
+                    <span class="text-3xl font-extrabold text-slate-900" x-text="streakCount + ' Days'"></span>
+                    <span class="text-xs font-semibold text-teal-600">Streak 🔥</span>
+                  </div>
+                  <p class="text-xs text-slate-500 font-medium">Keep tracking to unlock resilience badges</p>
+                </div>
+                <div class="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-600">
+                  <svg class="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.974 7.974 0 01-2.343 5.657z"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stress Trend Chart Panel -->
+            <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">
+                <div>
+                  <h3 class="font-bold text-lg text-slate-900">7-Day Stress Analytics</h3>
+                  <p class="text-xs text-slate-500">Hover over nodes to inspect key triggers & mood details</p>
+                </div>
+                <div class="flex items-center space-x-3 text-xs font-bold text-slate-600">
+                  <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-indigo-500 mr-1.5 inline-block"></span>Stress Score (1-10)</span>
+                </div>
+              </div>
+
+              <!-- Responsive Interactive SVG Chart -->
+              <div class="relative w-full h-64 bg-slate-50/50 rounded-2xl border border-slate-100 p-4 flex items-center justify-center">
+                
+                <!-- SVG Plotting -->
+                <svg class="w-full h-full" viewBox="0 0 500 200" preserveAspectRatio="none">
+                  <defs>
+                    <!-- Area fill gradient -->
+                    <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.25" />
+                      <stop offset="100%" stop-color="#6366f1" stop-opacity="0.0" />
+                    </linearGradient>
+                    <!-- Line glow filter -->
+                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur stdDeviation="4" result="blur" />
+                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                  </defs>
+
+                  <!-- X-Axis and Y-Axis grid lines -->
+                  <line x1="40" y1="20" x2="480" y2="20" stroke="#f1f5f9" stroke-width="1.5" />
+                  <line x1="40" y1="57.5" x2="480" y2="57.5" stroke="#f1f5f9" stroke-width="1.5" />
+                  <line x1="40" y1="95" x2="480" y2="95" stroke="#f1f5f9" stroke-width="1.5" />
+                  <line x1="40" y1="132.5" x2="480" y2="132.5" stroke="#f1f5f9" stroke-width="1.5" />
+                  <line x1="40" y1="170" x2="480" y2="170" stroke="#f8fafc" stroke-width="2" />
+
+                  <!-- Y-Axis Labels -->
+                  <text x="25" y="24" fill="#94a3b8" font-size="10" font-weight="700" text-anchor="end">10</text>
+                  <text x="25" y="99" fill="#94a3b8" font-size="10" font-weight="700" text-anchor="end">5</text>
+                  <text x="25" y="174" fill="#94a3b8" font-size="10" font-weight="700" text-anchor="end">0</text>
+
+                  <!-- Plotted Polygon Area Fill -->
+                  <polygon :points="getSvgAreaPoints()" fill="url(#chartGradient)" />
+
+                  <!-- Plotted Polyline -->
+                  <path :d="getSvgLinePath()" fill="none" stroke="#4f46e5" stroke-width="3" filter="url(#glow)" stroke-linecap="round" />
+
+                  <!-- Interactive Node Circles -->
+                  <template x-for="(item, idx) in stressHistory" :key="idx">
+                    <g>
+                      <!-- Glow backing (pulsing when active) -->
+                      <circle :cx="getSvgNodeX(idx)" :cy="getSvgNodeY(item.score)" r="7" 
+                              :fill="hoveredNode === idx ? '#4f46e5' : '#818cf8'" 
+                              :opacity="hoveredNode === idx ? 0.4 : 0.0" 
+                              class="transition-all duration-150" />
+                      <!-- Center point -->
+                      <circle :cx="getSvgNodeX(idx)" :cy="getSvgNodeY(item.score)" r="4.5" 
+                              fill="#ffffff" stroke="#4f46e5" stroke-width="2.5" 
+                              @mouseenter="hoveredNode = idx"
+                              @mouseleave="hoveredNode = null"
+                              class="cursor-pointer transition-transform duration-150 hover:scale-150" />
+                    </g>
+                  </template>
+                </svg>
+
+                <!-- Floating Interactive Tooltip overlay -->
+                <div class="absolute bg-slate-900 text-white p-3 rounded-xl text-xs shadow-xl space-y-1 z-10 transition duration-150 pointer-events-none"
+                     x-show="hoveredNode !== null"
+                     :style="getTooltipStyle()">
+                  <p class="font-bold border-b border-slate-700 pb-1 mb-1" x-text="hoveredNode !== null ? stressHistory[hoveredNode].day + ' Profile' : ''"></p>
+                  <p class="flex justify-between space-x-4"><span class="text-slate-400">Stress:</span> <span class="font-extrabold text-teal-400" x-text="hoveredNode !== null ? stressHistory[hoveredNode].score + '/10' : ''"></span></p>
+                  <p class="flex justify-between space-x-4"><span class="text-slate-400">Hidden Trigger:</span> <span class="font-semibold text-indigo-300 truncate max-w-[120px]" x-text="hoveredNode !== null ? stressHistory[hoveredNode].trigger : ''"></span></p>
+                </div>
+
+                <!-- X-Axis Labels placed absolute below SVG -->
+                <div class="absolute bottom-1.5 left-0 right-0 px-[48px] flex justify-between text-xxs font-bold text-slate-400 select-none">
+                  <template x-for="(item, idx) in stressHistory" :key="idx">
+                    <span class="w-[50px] text-center" x-text="item.day"></span>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- Triggers Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              <!-- Stressor Cards -->
+              <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                <h3 class="font-bold text-lg text-slate-900 mb-2">Identified Core Stressors</h3>
+                <p class="text-xs text-slate-500 mb-4">Dynamically extracted from your logs using GenAI</p>
+                
+                <div class="space-y-3">
+                  <template x-for="trigger in coreTriggers" :key="trigger.name">
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                      <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                          ⚡
+                        </div>
+                        <div>
+                          <h4 class="font-bold text-sm text-slate-900" x-text="trigger.name"></h4>
+                          <p class="text-xxs font-semibold text-slate-400 uppercase tracking-wider" x-text="trigger.impact + ' Impact'"></p>
+                        </div>
+                      </div>
+                      <span class="px-2.5 py-1 rounded-full text-xxs font-bold border border-slate-100" 
+                            :class="trigger.impact === 'High' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'"
+                            x-text="trigger.description"></span>
+                    </div>
+                  </template>
+
+                  <!-- Empty state triggers -->
+                  <div x-show="coreTriggers.length === 0" class="p-8 text-center text-slate-400 text-sm">
+                    Write in your Daily Mind-Dump journal to generate stress trigger insights.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Academic Mentor Quote & Advice block -->
+              <div class="bg-gradient-to-tr from-indigo-900 to-indigo-950 text-slate-100 p-6 rounded-3xl shadow-md flex flex-col justify-between">
+                <div class="space-y-4">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                      <span class="w-2.5 h-2.5 rounded-full bg-teal-400 animate-ping"></span>
+                      <span class="text-xxs font-bold tracking-widest uppercase text-teal-400">Senior Mentor Insights</span>
+                    </div>
+                    <span class="text-xs font-semibold px-2 py-1 bg-white/10 rounded-lg text-slate-200">Ex-IIT/Civil Servant Coach</span>
+                  </div>
+                  
+                  <div class="relative">
+                    <span class="text-5xl font-serif text-teal-500/20 absolute -top-4 -left-2 select-none">“</span>
+                    <p class="text-sm leading-relaxed text-indigo-100 pl-4 relative z-10 italic" x-text="mentorQuote">
+                      "Rotational mechanics might beat you down for three days, but consistency will build a concrete understanding on the fourth. The exam tests how you stand up, not how many questions you missed. Take the break you need today."
+                    </p>
+                  </div>
+                </div>
+
+                <div class="pt-6 border-t border-indigo-800 flex items-center justify-between">
+                  <div>
+                    <p class="text-xs font-bold text-slate-100">Dr. Vivek Nair</p>
+                    <p class="text-xxs text-indigo-300">Head Academic Wellness advisor</p>
+                  </div>
+                  <button @click="setView('journal')" class="px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded-xl shadow-md shadow-teal-900/30 transition">
+                    Reflect Today
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+          </section>
+
+          <!-- ================== VIEW: DAILY MIND-DUMP (JOURNAL) ================== -->
+          <section x-show="activeView === 'journal'" x-transition:enter="transition ease-out duration-300" class="space-y-6">
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              <!-- Journal Editor Column -->
+              <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <h3 class="font-bold text-lg text-slate-900">Your Emotional Sandbox</h3>
+                      <p class="text-xs text-slate-500">Unfiltered typing. No judgments. Type whatever is driving you anxious.</p>
+                    </div>
+                    
+                    <!-- API Indicator badge -->
+                    <span class="self-start px-2.5 py-1 rounded-lg text-xxs font-extrabold uppercase flex items-center space-x-1.5"
+                          :class="geminiApiKey ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-sky-50 text-sky-700 border border-sky-100'">
+                      <span class="w-1.5 h-1.5 rounded-full" :class="geminiApiKey ? 'bg-emerald-500' : 'bg-sky-500'"></span>
+                      <span x-text="geminiApiKey ? 'Gemini Live' : 'AI Simulator'"></span>
+                    </span>
+                  </div>
+
+                  <!-- Quick Assist Tags -->
+                  <div>
+                    <span class="text-xxs font-bold text-slate-400 uppercase tracking-widest block mb-2">Feeling stuck? Click a quick tag to start:</span>
+                    <div class="flex flex-wrap gap-2">
+                      <template x-for="tag in promptTags" :key="tag">
+                        <button @click="appendTagToJournal(tag)" class="px-3 py-1.5 bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-100 rounded-xl text-xs font-semibold text-slate-600 hover:text-indigo-950 transition duration-150">
+                          + <span x-text="tag"></span>
+                        </button>
+                      </template>
+                    </div>
+                  </div>
+
+                  <!-- Textarea Editor -->
+                  <div class="relative">
+                    <textarea x-model="journalText" 
+                              @input="checkCrisisKeywords()"
+                              placeholder="My mock test results came back and they were terrible... I have so much organic chemistry backlog, and my parents are calling me later... I feel extremely overwhelmed..." 
+                              class="w-full h-64 p-4 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl resize-none text-sm leading-relaxed text-slate-700 placeholder-slate-400 focus:outline-none transition"
+                              maxlength="4000"></textarea>
+                    
+                    <!-- Character & word counts -->
+                    <div class="absolute bottom-3 right-4 flex space-x-3 text-xxs font-bold text-slate-400 bg-white/90 px-2 py-0.5 rounded-md">
+                      <span x-text="journalText.length + '/4000 characters'"></span>
+                      <span x-text="getWordCount() + ' words'"></span>
+                    </div>
+                  </div>
+
+                  <!-- Crisis Prompt Trigger Warning Alert Banner in Editor -->
+                  <div x-show="crisisKeywordDetected" x-cloak class="p-4 bg-amber-50 border-l-4 border-amber-500 rounded-xl flex items-start space-x-3 transition-all duration-300">
+                    <div class="text-xl leading-none">⚠️</div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs font-bold text-amber-900">Heavy feelings detected</p>
+                      <p class="text-xxs text-amber-700 mt-0.5">Please take it easy. Competitive exams are hard, but your safety is our top priority. Safe resources are available below.</p>
+                    </div>
+                  </div>
+
+                  <!-- Action buttons -->
+                  <div class="flex items-center space-x-3">
+                    <button @click="analyzeJournal()" 
+                            :disabled="journalText.trim().length < 15 || isAnalyzing"
+                            class="flex-1 sm:flex-none px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 text-white font-bold text-sm rounded-xl transition duration-150 flex items-center justify-center space-x-2 shadow-md shadow-indigo-200/50">
+                      <template x-if="isAnalyzing">
+                        <span class="flex items-center space-x-2">
+                          <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span x-text="loadingMessages[currentLoadingMsgIdx]"></span>
+                        </span>
+                      </template>
+                      <template x-if="!isAnalyzing">
+                        <span class="flex items-center space-x-2">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9.663 17h4.673M12 3v1m6.364.364l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                          </svg>
+                          <span>Analyze My Day</span>
+                        </span>
+                      </template>
+                    </button>
+                    
+                    <button @click="clearJournal()" 
+                            x-show="journalText.trim().length > 0 && !isAnalyzing"
+                            class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition duration-150">
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <!-- CRISIS OVERRIDE CARD (If Crisis Keywords Triggered) -->
+                <div x-show="crisisFlagged" x-cloak x-transition class="bg-gradient-to-tr from-rose-50 to-red-100/90 border border-red-200 p-6 rounded-3xl shadow-md space-y-4">
+                  <div class="flex items-center space-x-3 text-red-700">
+                    <div class="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-lg shadow-sm">
+                      ❤️
+                    </div>
+                    <div>
+                      <h3 class="font-extrabold text-base">You are worth so much more than an exam</h3>
+                      <p class="text-xs text-red-600 font-semibold">Competitive exams are stress test tunnels, not life endpoints. Please pause and reach out.</p>
+                    </div>
+                  </div>
+
+                  <div class="text-sm text-slate-800 leading-relaxed font-medium bg-white/70 p-4 rounded-2xl border border-red-100/30">
+                    Hey, if you are feeling overwhelmed to the point of self-harm or deep despair, please know that you are not alone. Rotary clocks and ranks can be replaced, but your life is completely unique and precious. Please reach out to these confidential, free Indian helplines right now:
+                  </div>
+
+                  <!-- Helplines Contacts list -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Vandrevala Foundation -->
+                    <div class="p-3 bg-white border border-red-100 rounded-xl flex flex-col justify-between">
+                      <div>
+                        <h4 class="font-bold text-slate-900 text-xs">Vandrevala Foundation</h4>
+                        <p class="text-xxs text-slate-400 font-medium">Mental Health Support (24/7)</p>
+                      </div>
+                      <a href="tel:9999666555" class="mt-2 py-1.5 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-center text-xs transition block shadow-sm">
+                        Call: 9999 666 555
+                      </a>
+                    </div>
+
+                    <!-- AASRA -->
+                    <div class="p-3 bg-white border border-red-100 rounded-xl flex flex-col justify-between">
+                      <div>
+                        <h4 class="font-bold text-slate-900 text-xs">AASRA</h4>
+                        <p class="text-xxs text-slate-400 font-medium">Crisis Intervention Support (24/7)</p>
+                      </div>
+                      <a href="tel:919820466726" class="mt-2 py-1.5 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-center text-xs transition block shadow-sm">
+                        Call: +91-9820466726
+                      </a>
+                    </div>
+
+                    <!-- Tele-MANAS -->
+                    <div class="p-3 bg-white border border-red-100 rounded-xl flex flex-col justify-between">
+                      <div>
+                        <h4 class="font-bold text-slate-900 text-xs">Tele-MANAS</h4>
+                        <p class="text-xxs text-slate-400 font-medium">Govt of India Helpline (24/7)</p>
+                      </div>
+                      <a href="tel:14416" class="mt-2 py-1.5 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-center text-xs transition block shadow-sm">
+                        Call: 14416
+                      </a>
+                    </div>
+
+                    <!-- Kiran Helpline -->
+                    <div class="p-3 bg-white border border-red-100 rounded-xl flex flex-col justify-between">
+                      <div>
+                        <h4 class="font-bold text-slate-900 text-xs">Kiran Mental Health</h4>
+                        <p class="text-xxs text-slate-400 font-medium">Ministry of Social Justice (24/7)</p>
+                      </div>
+                      <a href="tel:18005990019" class="mt-2 py-1.5 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-center text-xs transition block shadow-sm">
+                        Call: 1800-599-0019
+                      </a>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-end pt-2">
+                    <button @click="crisisFlagged = false" class="text-xxs font-bold text-red-600 hover:text-red-800 underline">
+                      I understand, go back to standard results
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Analysis Results Column -->
+              <div class="space-y-6">
+                <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4 min-h-[300px] flex flex-col justify-between">
+                  
+                  <!-- When No analysis is loaded -->
+                  <div x-show="!analysisResult && !isAnalyzing" class="my-auto text-center p-8 space-y-3">
+                    <div class="w-16 h-16 mx-auto rounded-full bg-slate-50 flex items-center justify-center text-2xl shadow-inner">
+                      📝
+                    </div>
+                    <div>
+                      <h4 class="font-bold text-slate-800 text-sm">Waiting for Reflection</h4>
+                      <p class="text-xs text-slate-400 leading-normal max-w-[200px] mx-auto mt-1">Write your daily reflection and click Analyze to generate senior coach insights.</p>
+                    </div>
+                  </div>
+
+                  <!-- While analyzing skeleton / load spinner -->
+                  <div x-show="isAnalyzing" class="my-auto p-8 text-center space-y-4">
+                    <div class="relative w-16 h-16 mx-auto flex items-center justify-center">
+                      <span class="absolute w-full h-full rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin"></span>
+                      <span class="text-lg">🧘</span>
+                    </div>
+                    <div class="space-y-1">
+                      <p class="font-bold text-slate-700 text-xs animate-pulse" x-text="loadingMessages[currentLoadingMsgIdx]"></p>
+                      <p class="text-xxs text-slate-400">GenAI is extracting patterns & hidden stressors...</p>
+                    </div>
+                  </div>
+
+                  <!-- Structured Analysis Output -->
+                  <div x-show="analysisResult && !isAnalyzing" x-cloak class="space-y-5 flex-1 flex flex-col justify-between">
+                    
+                    <!-- Mood Header -->
+                    <div class="flex items-center justify-between border-b border-slate-50 pb-4">
+                      <div>
+                        <span class="text-xxs font-bold text-slate-400 uppercase tracking-wider block">Evaluated Mood State</span>
+                        <div class="flex items-center space-x-2 mt-1">
+                          <span class="text-2xl font-extrabold text-slate-900" x-text="analysisResult.moodScore + '/10'"></span>
+                          <span class="px-2 py-0.5 rounded text-xxs font-bold uppercase tracking-wider" 
+                                :class="getStressColorClass(analysisResult.moodScore)" 
+                                x-text="getStressLabel(analysisResult.moodScore)"></span>
+                        </div>
+                      </div>
+                      <!-- Emoji status matching mood -->
+                      <div class="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-xl" 
+                           x-text="getMoodEmoji(analysisResult.moodScore)">
+                      </div>
+                    </div>
+
+                    <!-- Dominant Emotion -->
+                    <div class="space-y-1">
+                      <span class="text-xxs font-bold text-slate-400 uppercase tracking-wider block">Dominant Emotion</span>
+                      <div class="text-xs font-bold text-slate-750 p-2.5 bg-slate-50 border border-slate-100 rounded-xl" x-text="analysisResult.dominantEmotion"></div>
+                    </div>
+
+                    <!-- Extracted Hidden Trigger -->
+                    <div class="space-y-1">
+                      <span class="text-xxs font-bold text-slate-400 uppercase tracking-wider block">Primary Stress Trigger</span>
+                      <div class="flex items-center space-x-2 p-3 bg-red-50/50 border border-red-100/50 rounded-xl text-red-800 text-xs font-bold">
+                        <span>⚡</span>
+                        <span x-text="analysisResult.primaryTrigger"></span>
+                      </div>
+                    </div>
+
+                    <!-- Academic Mentor Support Response -->
+                    <div class="space-y-1 bg-indigo-50/50 border border-indigo-100/40 p-4 rounded-2xl relative">
+                      <span class="text-xxs font-bold text-indigo-700 uppercase tracking-widest block mb-1">Mentor's Perspective</span>
+                      <span class="text-3xl font-serif text-indigo-400/20 absolute top-2 right-3 leading-none select-none">“</span>
+                      <p class="text-xs text-slate-700 leading-relaxed italic" x-text="analysisResult.mentorResponse"></p>
+                    </div>
+
+                    <!-- 1-Minute Coping Strategy -->
+                    <div class="space-y-1 bg-teal-50/50 border border-teal-100/40 p-4 rounded-2xl">
+                      <span class="text-xxs font-bold text-teal-800 uppercase tracking-widest block mb-1">1-Min Coping Strategy</span>
+                      <p class="text-xs text-slate-700 leading-relaxed" x-text="analysisResult.copingStrategy"></p>
+                    </div>
+
+                    <!-- Log feedback button -->
+                    <button @click="logAnalysisToDashboard()" class="w-full mt-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-md">
+                      <span>Log entry to stress history</span>
+                      <span>+</span>
+                    </button>
+
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+
+          </section>
+
+          <!-- ================== VIEW: AI COPING DECK ================== -->
+          <section x-show="activeView === 'coping'" x-transition:enter="transition ease-out duration-300" class="space-y-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              
+              <!-- Tool 1: Box Breathing -->
+              <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[460px]">
+                <div>
+                  <div class="flex items-center justify-between mb-4">
+                    <span class="px-2.5 py-1 bg-teal-50 text-teal-700 border border-teal-100 rounded-lg text-xxs font-extrabold uppercase tracking-wider">Coping Tool</span>
+                    <span class="text-xs font-semibold text-slate-400">Somatic Reset</span>
+                  </div>
+                  <h3 class="font-bold text-lg text-slate-900 mb-1">2-Minute Box Breathing</h3>
+                  <p class="text-xs text-slate-500 leading-normal">Calm your autonomic nervous system instantly. Follow the expanding and contracting visual guide.</p>
+                </div>
+
+                <!-- Breathing Visualizer Anchor -->
+                <div class="my-8 flex flex-col items-center justify-center space-y-6">
+                  <div class="relative w-40 h-40 flex items-center justify-center">
+                    <!-- Outer breathing circle with status colors -->
+                    <div class="w-24 h-24 rounded-full border-4 flex items-center justify-center transition-all duration-[4000ms] ease-linear shadow-lg"
+                         :class="getBreathingCircleClass()">
+                      <!-- Center focal point -->
+                      <div class="w-6 h-6 rounded-full bg-white shadow-inner flex items-center justify-center">
+                        <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Visual Instructions -->
+                  <div class="text-center space-y-1">
+                    <p class="text-base font-extrabold text-slate-900 tracking-tight" x-text="getBreathingLabel()"></p>
+                    <p class="text-xxs font-bold text-slate-400 uppercase tracking-widest" x-text="getBreathingCountdownText()"></p>
+                  </div>
+                </div>
+
+                <!-- Trigger Button -->
+                <div>
+                  <button @click="toggleBreathingCycle()" 
+                          class="w-full py-3 rounded-xl font-bold text-sm transition duration-150 flex items-center justify-center space-x-2"
+                          :class="breathingActive ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-teal-500 text-slate-950 hover:bg-teal-400 shadow-md shadow-teal-100'">
+                    <span x-text="breathingActive ? 'Stop Session' : 'Begin Box Breathing'"></span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tool 2: Syllabus De-Compressor -->
+              <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[460px]">
+                <div class="space-y-4">
+                  <div>
+                    <div class="flex items-center justify-between mb-4">
+                      <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-lg text-xxs font-extrabold uppercase tracking-wider">De-compressor</span>
+                      <span class="text-xs font-semibold text-slate-400 font-mono">Micro-planning</span>
+                    </div>
+                    <h3 class="font-bold text-lg text-slate-900 mb-1">Syllabus De-Compressor</h3>
+                    <p class="text-xs text-slate-500 leading-normal">Feeling paralyzed by a massive chapter? Type it in below. AI will slice it into three ridiculously micro-steps.</p>
+                  </div>
+
+                  <!-- Inputs -->
+                  <div class="space-y-2">
+                    <input type="text" x-model="decompressTopic" 
+                           placeholder="e.g. Rotational Mechanics, Organic Chemistry, Laxmikanth Polity" 
+                           class="w-full p-3 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs font-semibold placeholder-slate-400 focus:outline-none" />
+                    
+                    <button @click="decompressSyllabus()" 
+                            :disabled="!decompressTopic.trim() || decompressing"
+                            class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-100/50 transition duration-150 flex items-center justify-center space-x-2">
+                      <template x-if="decompressing">
+                        <span class="flex items-center space-x-2">
+                          <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Slicing topics into bits...</span>
+                        </span>
+                      </template>
+                      <template x-if="!decompressing">
+                        <span>De-Compress Concept</span>
+                      </template>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Steps Output -->
+                <div class="flex-1 flex flex-col justify-center my-4">
+                  <!-- Skeletons / Blank State -->
+                  <div x-show="!decompressedSteps && !decompressing" class="text-center p-6 text-slate-400 text-xs italic">
+                    Enter an overwhelming topic above to generate a stress-free action roadmap.
+                  </div>
+
+                  <div x-show="decompressing" class="space-y-3 p-2 animate-pulse">
+                    <div class="h-8 bg-slate-100 rounded-xl"></div>
+                    <div class="h-8 bg-slate-100 rounded-xl"></div>
+                    <div class="h-8 bg-slate-100 rounded-xl"></div>
+                  </div>
+
+                  <!-- Structured steps output -->
+                  <div x-show="decompressedSteps && !decompressing" x-cloak class="space-y-3">
+                    <div class="p-3 bg-slate-50 border border-slate-100 rounded-2xl flex items-start space-x-3">
+                      <span class="w-5 h-5 rounded-full bg-teal-100 text-teal-800 text-xxs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+                      <div class="space-y-0.5">
+                        <h5 class="text-xxs font-extrabold text-slate-400 uppercase tracking-wide">Step 1: Micro-Focus Area</h5>
+                        <p class="text-xs text-slate-800 font-semibold" x-text="decompressedSteps.step1"></p>
+                      </div>
+                    </div>
+
+                    <div class="p-3 bg-slate-50 border border-slate-100 rounded-2xl flex items-start space-x-3">
+                      <span class="w-5 h-5 rounded-full bg-teal-100 text-teal-800 text-xxs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+                      <div class="space-y-0.5">
+                        <h5 class="text-xxs font-extrabold text-slate-400 uppercase tracking-wide">Step 2: 15-Minute Study Window</h5>
+                        <p class="text-xs text-slate-800 font-semibold" x-text="decompressedSteps.step2"></p>
+                      </div>
+                    </div>
+
+                    <div class="p-3 bg-slate-50 border border-slate-100 rounded-2xl flex items-start space-x-3">
+                      <span class="w-5 h-5 rounded-full bg-teal-100 text-teal-800 text-xxs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+                      <div class="space-y-0.5">
+                        <h5 class="text-xxs font-extrabold text-slate-400 uppercase tracking-wide">Step 3: Win & Walk Away</h5>
+                        <p class="text-xs text-slate-800 font-semibold" x-text="decompressedSteps.step3"></p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Help Footnote -->
+                <div class="text-xxs text-slate-400 font-semibold text-center border-t border-slate-50 pt-3">
+                  Remember: You don't have to study the whole syllabus today. Just win these 3 steps.
+                </div>
+              </div>
+
+              <!-- Tool 3: Instant Pep-Talk -->
+              <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[460px]">
+                <div>
+                  <div class="flex items-center justify-between mb-4">
+                    <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-lg text-xxs font-extrabold uppercase tracking-wider">Encouragement</span>
+                    <span class="text-xs font-semibold text-slate-400">Exam Specific</span>
+                  </div>
+                  <h3 class="font-bold text-lg text-slate-900 mb-1">Instant Mentor Pep-Talk</h3>
+                  <p class="text-xs text-slate-500 leading-normal">Choose your track and receive an instant dose of academic perspective when motivation runs dry.</p>
+                </div>
+
+                <!-- Pep Talk Selector & Screen -->
+                <div class="my-6 space-y-4 flex-1 flex flex-col justify-center">
+                  
+                  <!-- Track buttons selectors -->
+                  <div class="grid grid-cols-5 gap-2">
+                    <template x-for="track in ['JEE', 'NEET', 'UPSC', 'GATE', 'CAT']" :key="track">
+                      <button @click="pepTalkTrack = track" 
+                              :class="pepTalkTrack === track ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-indigo-50'"
+                              class="py-2 text-center rounded-xl text-xs font-semibold transition"
+                              x-text="track">
+                      </button>
+                    </template>
+                  </div>
+
+                  <!-- Output block -->
+                  <div class="p-5 bg-gradient-to-tr from-slate-900 to-indigo-950 text-indigo-100 rounded-2xl shadow-inner min-h-[140px] flex items-center justify-center relative">
+                    <span class="text-4xl font-serif text-teal-400/20 absolute top-2 left-3 select-none">“</span>
+                    <p class="text-xs leading-relaxed italic text-center px-4 relative z-10" x-text="pepTalkText"></p>
+                  </div>
+                </div>
+
+                <!-- Action Button -->
+                <div>
+                  <button @click="generatePepTalk()" 
+                          class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-100 transition duration-150 flex items-center justify-center space-x-1.5">
+                    <span>Generate Pep-Talk</span>
+                    <span>🔥</span>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+          </section>
+
+        </div>
+      </main>
+
+      <!-- ================== MODAL: API SETTINGS ================== -->
+      <div x-show="settingsOpen" x-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div @click.away="settingsOpen = false" class="bg-white rounded-3xl border border-slate-100 w-full max-w-md p-6 shadow-2xl space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h3 class="font-bold text-base text-slate-900">Settings & Profile Panel</h3>
+            <button @click="settingsOpen = false" class="text-slate-400 hover:text-slate-600 text-lg leading-none">&times;</button>
+          </div>
+
+          <div class="space-y-4 text-xs font-semibold text-slate-700">
+            <div class="space-y-1.5">
+              <label class="block text-slate-600">Your Student Name</label>
+              <input type="text" x-model="studentName" class="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div class="space-y-1.5">
+                <label class="block text-slate-600">Select Exam Target</label>
+                <select x-model="examTrack" class="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                  <option value="JEE">JEE (Engineering)</option>
+                  <option value="NEET">NEET (Medical)</option>
+                  <option value="UPSC">UPSC (Civil Services)</option>
+                  <option value="GATE">GATE (Postgrad Engineering)</option>
+                  <option value="CAT">CAT (Management)</option>
+                </select>
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="block text-slate-600">Daily Study Target (Hrs)</label>
+                <input type="number" x-model.number="studyHours" class="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" />
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="block text-slate-600">Primary Stressor</label>
+              <select x-model="primaryStressor" class="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="Mock Test Scores">Mock Test Scores & Ranking</option>
+                <option value="Backlog Anxiety">Backlog Accumulation & Syllabus Load</option>
+                <option value="Parental Pressure">Parental Expectations & Pressure</option>
+                <option value="Social Isolation">Isolation & Peer Comparison</option>
+              </select>
+            </div>
+
+            <div class="space-y-1.5">
+              <div class="flex justify-between items-center">
+                <label class="block text-slate-600">Gemini API Key</label>
+                <a href="https://aistudio.google.com/" target="_blank" class="text-indigo-600 hover:underline text-xxs font-bold">Get a free key</a>
+              </div>
+              <input type="password" x-model="geminiApiKey" placeholder="AIzaSy..." class="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100 flex justify-between items-center">
+            <!-- Reset Profile Option -->
+            <button @click="resetStudentProfile()" class="text-xxs font-bold text-red-600 hover:text-red-800 hover:underline">
+              Reset Onboarding Profile
+            </button>
+
+            <button @click="saveSettings()" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition">
+              Save Settings
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    function appState() {
+      // Check existing cached profile
+      const cachedProfile = localStorage.getItem('mind_student_profile');
+      let profile = null;
+      if (cachedProfile) {
+        try {
+          profile = JSON.parse(cachedProfile);
+        } catch (e) {
+          console.error('Failed to parse cached profile:', e);
+        }
+      }
+
+      return {
+        // App Navigation and State
+        activeView: 'dashboard',
+        activeViewName: 'Dashboard Insight Hub',
+        mobileMenuOpen: false,
+        settingsOpen: false,
+        
+        // Onboarding Screen Variables
+        hasProfile: profile !== null,
+        onboardName: '',
+        onboardTrack: 'JEE',
+        onboardHours: 8,
+        onboardStressor: 'Backlog Anxiety',
+
+        // User Profile Info
+        studentName: profile ? profile.name : 'Guest Student',
+        examTrack: profile ? profile.track : 'JEE',
+        studyHours: profile ? profile.hours : 8,
+        primaryStressor: profile ? profile.stressor : 'Backlog Anxiety',
+        streakCount: 4,
+        todayStressLevel: 7,
+
+        // Settings / API
+        geminiApiKey: localStorage.getItem('mind_gemini_api_key') || '',
+        
+        // Journal Core
+        journalText: '',
+        promptTags: [
+          'Just finished a mock test', 
+          'Feeling isolated', 
+          'Backlog anxiety', 
+          'Sleep deprived', 
+          'Parental pressure',
+          'Concept block'
+        ],
+        isAnalyzing: false,
+        currentLoadingMsgIdx: 0,
+        loadingMessages: [
+          'Connecting to academic sanctuary...',
+          'AI analyzing emotional patterns...',
+          'Scanning for hidden burnout triggers...',
+          'Structuring older-mentor advice...',
+          'Refining stress relief steps...'
+        ],
+        loadingInterval: null,
+        analysisResult: null,
+
+        // Crisis Guardrail Flags
+        crisisKeywordDetected: false,
+        crisisFlagged: false,
+        crisisKeywords: [
+          'suicide', 'kill myself', 'end my life', 'want to die', 
+          'hanging myself', 'ending it', 'self-harm', 'harm myself', 
+          'slit my wrist', 'no point in living', 'better off dead'
+        ],
+
+        // Dashboard stress graph mock data
+        stressHistory: [
+          { day: 'Mon', score: 6, trigger: 'Mock Test Drop' },
+          { day: 'Tue', score: 5, trigger: 'None (Study day)' },
+          { day: 'Wed', score: 8, trigger: 'Physics HC Verma Block' },
+          { day: 'Thu', score: 7, trigger: 'Mock Test Performance' },
+          { day: 'Fri', score: 6, trigger: 'None (Rest session)' },
+          { day: 'Sat', score: 4, trigger: 'Breathing relief session' },
+          { day: 'Sun', score: 7, trigger: 'Math Backlog Pressure' }
+        ],
+        hoveredNode: null,
+
+        // Core Triggers list from last logs
+        coreTriggers: [
+          { name: 'Physics Mock Test', impact: 'High', description: 'Score drop' },
+          { name: 'Rotational Mechanics Backlog', impact: 'High', description: 'Concept block' },
+          { name: 'Parental Call Expectations', impact: 'Medium', description: 'Comparison pressure' }
+        ],
+
+        // Dynamic elements
+        greetingMessage: '',
+        motivationalQuote: '',
+        mentorQuote: '',
+
+        // Coping: Breathing Deck
+        breathingActive: false,
+        breathingState: 'idle', // idle, inhale, hold1, exhale, hold2
+        breathingSeconds: 0,
+        breathingTimer: null,
+
+        // Coping: Syllabus Decompressor
+        decompressTopic: '',
+        decompressing: false,
+        decompressedSteps: null,
+
+        // Coping: Pep-Talk
+        pepTalkTrack: 'JEE',
+        pepTalkText: 'Select an exam track and click generate to receive encouragement from your mentor.',
+
+        // Init Hook
+        init() {
+          this.setGreeting();
+          this.setMotivationalQuote();
+          this.setMentorQuote();
+          this.generatePepTalk();
+        },
+
+        setView(view) {
+          this.activeView = view;
+          this.mobileMenuOpen = false;
+          if (view === 'dashboard') {
+            this.activeViewName = 'Dashboard Insight Hub';
+          } else if (view === 'journal') {
+            this.activeViewName = 'Daily Mind-Dump (Journal)';
+          } else if (view === 'coping') {
+            this.activeViewName = 'AI Coping Deck & Tools';
+          }
+        },
+
+        // Onboarding handlers
+        submitOnboarding() {
+          if (!this.onboardName.trim()) return;
+
+          this.studentName = this.onboardName;
+          this.examTrack = this.onboardTrack;
+          this.studyHours = Number(this.onboardHours) || 8;
+          this.primaryStressor = this.onboardStressor;
+          
+          // Save profile object
+          const profileObj = {
+            name: this.studentName,
+            track: this.examTrack,
+            hours: this.studyHours,
+            stressor: this.primaryStressor
+          };
+          localStorage.setItem('mind_student_profile', JSON.stringify(profileObj));
+
+          // Set default tailored triggers based on onboarding stressor
+          this.coreTriggers = [
+            { 
+              name: this.primaryStressor, 
+              impact: 'High', 
+              description: `Primary concern for ${this.examTrack} target`
+            }
+          ];
+
+          // Initialize dashboard greetings
+          this.hasProfile = true;
+          this.setGreeting();
+          this.setMentorQuote();
+          this.generatePepTalk();
+          this.setMotivationalQuote();
+          this.setView('dashboard');
+        },
+
+        resetStudentProfile() {
+          if (confirm('Are you sure you want to reset your student profile? This will log you out and return to the onboarding setup.')) {
+            localStorage.removeItem('mind_student_profile');
+            this.hasProfile = false;
+            this.studentName = 'Guest Student';
+            this.onboardName = '';
+            this.settingsOpen = false;
+          }
+        },
+
+        // Helper calculations for dynamic content
+        setGreeting() {
+          const hr = new Date().getHours();
+          let g = 'Good morning';
+          if (hr >= 12 && hr < 17) g = 'Good afternoon';
+          else if (hr >= 17 && hr < 22) g = 'Good evening';
+          else if (hr >= 22 || hr < 4) g = 'Late night check-in';
+          
+          this.greetingMessage = `Welcome back, ${this.studentName.split(' ')[0]}!`;
+        },
+
+        setMotivationalQuote() {
+          const quotes = [
+            'One mock test does not define your future. Focus on concepts, not outcomes.',
+            'A single rank in a coaching class sheet is not a measure of your human capability.',
+            'Beta, take it one step at a time. The syllabus is finite, your health is infinite.',
+            'Your parents care about you far more than they care about any rank card.',
+            'Focus on the process of learning. The score is a side-effect.'
+          ];
+          this.motivationalQuote = quotes[Math.floor(Math.random() * quotes.length)];
+        },
+
+        setMentorQuote() {
+          const quotes = {
+            'JEE': 'Rotational mechanics might beat you down for three days, but consistency will build a concrete understanding on the fourth. The exam tests how you stand up, not how many questions you missed.',
+            'NEET': 'Remember why you wanted to be a healer. It wasn\'t to score 720/720; it was to serve. Treat your preparation with respect, but treat your mind with kindness. Revision is your strength.',
+            'UPSC': 'The syllabus of UPSC is as wide as the ocean, but the standard books are key. Don\'t run after 10 coaching materials. Trust your core revision. Rest is essential for retention.',
+            'GATE': 'Concepts are your pillars. When a numerical doesn\'t clear on the first go, analyze the formula source. GATE tests core understanding. Keep your calm during mock exams.',
+            'CAT': 'Business school prep is about speed, accuracy, and mental agility. Don\'t let a tough Quantitative Aptitude or DILR block make you doubt your capabilities. CAT is a test of percentile strategy, not complete syllabus cramming. Take a walk, clear your head.'
+          };
+          this.mentorQuote = quotes[this.examTrack] || quotes['JEE'];
+        },
+
+        getStressColorClass(score) {
+          if (score <= 4) return 'text-teal-600 bg-teal-50';
+          if (score <= 7) return 'text-indigo-600 bg-indigo-50';
+          return 'text-red-600 bg-red-50';
+        },
+
+        getStressLabel(score) {
+          if (score <= 4) return 'Calm / Managed';
+          if (score <= 7) return 'Moderate Stress';
+          return 'High Burnout Risk';
+        },
+
+        getStressBgClass(score) {
+          if (score <= 4) return 'bg-teal-50';
+          if (score <= 7) return 'bg-indigo-50';
+          return 'bg-red-50';
+        },
+
+        getStressTextClass(score) {
+          if (score <= 4) return 'text-teal-600';
+          if (score <= 7) return 'text-indigo-600';
+          return 'text-red-600';
+        },
+
+        getMoodEmoji(score) {
+          if (score <= 3) return '😌'; // very relaxed
+          if (score <= 5) return '🙂'; // light stress
+          if (score <= 7) return '😐'; // anxious/stressed
+          return '😫'; // severe burnout
+        },
+
+        // Helper calculations for dynamic SVG stress chart
+        getSvgNodeX(index) {
+          const padLeft = 40;
+          const graphWidth = 440;
+          const numNodes = this.stressHistory.length;
+          return padLeft + (index * (graphWidth / (numNodes - 1)));
+        },
+
+        getSvgNodeY(score) {
+          const padTop = 20;
+          const graphHeight = 150;
+          return (padTop + graphHeight) - (graphHeight * (score / 10));
+        },
+
+        getSvgLinePath() {
+          return this.stressHistory.map((item, idx) => {
+            const x = this.getSvgNodeX(idx);
+            const y = this.getSvgNodeY(item.score);
+            return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+          }).join(' ');
+        },
+
+        getSvgAreaPoints() {
+          const basePoints = this.stressHistory.map((item, idx) => {
+            const x = this.getSvgNodeX(idx);
+            const y = this.getSvgNodeY(item.score);
+            return `${x},${y}`;
+          }).join(' ');
+          
+          const xStart = this.getSvgNodeX(0);
+          const xEnd = this.getSvgNodeX(this.stressHistory.length - 1);
+          return `${xStart},170 ${basePoints} ${xEnd},170`;
+        },
+
+        getTooltipStyle() {
+          if (this.hoveredNode === null) return 'display: none;';
+          
+          // Calculate node coordinates in parent container percentage or absolute
+          const nodeX = this.getSvgNodeX(this.hoveredNode);
+          const nodeY = this.getSvgNodeY(this.stressHistory[this.hoveredNode].score);
+          
+          // Compute tooltip absolute offsets
+          // SVG viewBox is 500x200. Tooltip is placed near the node.
+          // Translate SVG coordinate system percentages relative to the containing container.
+          return `left: calc(${nodeX / 500 * 100}% - 70px); top: calc(${nodeY / 200 * 100}% - 90px);`;
+        },
+
+        // Journal Actions
+        getWordCount() {
+          return this.journalText.trim() === '' ? 0 : this.journalText.trim().split(/\s+/).length;
+        },
+
+        appendTagToJournal(tag) {
+          const tagPrompts = {
+            'Just finished a mock test': "I just finished a mock test and the results were not what I expected. I feel really disappointed and stressed because...",
+            'Feeling isolated': "I feel completely isolated prep-wise. Everyone seems to be ahead of me, and I have nobody to really share how anxious I am with...",
+            'Backlog anxiety': "I have a massive backlog building up in chapters, especially in mechanics and chemistry, and every time I look at my schedule I freeze up...",
+            'Sleep deprived': "I am barely sleeping 4-5 hours a night. My head hurts during mock exams, and I feel constantly tired and unable to focus...",
+            'Parental pressure': "I feel like my parents have pinned all their hopes on me clearing this. Whenever they call, I feel an instant chest tightening because...",
+            'Concept block': "I am completely stuck on this concept block. I've tried reading it multiple times but nothing is sticking, and I feel stupid..."
+          };
+          
+          const appendStr = tagPrompts[tag] || ` ${tag} `;
+          if (this.journalText.trim() === '') {
+            this.journalText = appendStr;
+          } else {
+            this.journalText = this.journalText.trim() + "\n\n" + appendStr;
+          }
+          this.checkCrisisKeywords();
+        },
+
+        clearJournal() {
+          this.journalText = '';
+          this.crisisKeywordDetected = false;
+        },
+
+        checkCrisisKeywords() {
+          const lower = this.journalText.toLowerCase();
+          this.crisisKeywordDetected = this.crisisKeywords.some(keyword => lower.includes(keyword));
+        },
+
+        // API Journal Analysis Trigger (Refactored for live SDK & REST fallback)
+        async analyzeJournal() {
+          if (this.journalText.trim().length < 15) return;
+          
+          // Trigger loading
+          this.isAnalyzing = true;
+          this.currentLoadingMsgIdx = 0;
+          this.analysisResult = null;
+          
+          // Cycle loading messages for visual flavor
+          this.loadingInterval = setInterval(() => {
+            this.currentLoadingMsgIdx = (this.currentLoadingMsgIdx + 1) % this.loadingMessages.length;
+          }, 1200);
+
+          // Force double-check crisis filter
+          this.checkCrisisKeywords();
+          if (this.crisisKeywordDetected) {
+            clearInterval(this.loadingInterval);
+            this.isAnalyzing = false;
+            this.crisisFlagged = true;
+            return;
+          }
+
+          // Trigger simulated API call or actual Gemini fetch
+          try {
+            if (this.geminiApiKey) {
+              const res = await this.fetchGeminiAnalysis(this.journalText);
+              
+              // Validate and structure response
+              this.analysisResult = {
+                moodScore: Number(res.mood_score) || 5,
+                dominantEmotion: res.dominant_emotion || 'Unspecified',
+                primaryTrigger: res.hidden_trigger || 'General Pressure',
+                mentorResponse: res.empathetic_response || 'Beta, stay strong.',
+                copingStrategy: res.micro_action_step || 'Breathe and count to ten.',
+                safetyFlag: Boolean(res.safety_flag)
+              };
+
+              // Intercept Safety Flag immediately if flagged by the LLM
+              if (this.analysisResult.safetyFlag) {
+                this.crisisFlagged = true;
+                this.isAnalyzing = false;
+                clearInterval(this.loadingInterval);
+                return;
+              }
+
+              // Update Dashboard triggers immediately
+              this.updateLiveDashboardTriggers();
+
+            } else {
+              // Heuristic Local Simulation (if no API Key)
+              const mockResult = this.generateLocalSimulatedAnalysis(this.journalText);
+              // Wait 2.5 seconds to simulate complex GenAI processes
+              await new Promise(resolve => setTimeout(resolve, 2500));
+              this.analysisResult = mockResult;
+              
+              if (this.analysisResult.safetyFlag) {
+                this.crisisFlagged = true;
+                this.isAnalyzing = false;
+                clearInterval(this.loadingInterval);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error('Error during GenAI Analysis:', e);
+            // Fallback immediately on error
+            this.analysisResult = {
+              moodScore: 6,
+              dominantEmotion: 'Anxious',
+              primaryTrigger: 'General Exam Overwhelm',
+              mentorResponse: 'Beta, technology sometimes stumbles, but your efforts shouldn\'t. Even in this minor system glitch, remember that your health is paramount. Take deep breaths; you are doing fine.',
+              copingStrategy: 'Step away from the screen for 2 minutes. Wash your face with cold water.',
+              safetyFlag: false
+            };
+          } finally {
+            clearInterval(this.loadingInterval);
+            this.isAnalyzing = false;
+          }
+        },
+
+        // Google Gemini API direct REST/SDK fetch integration
+        async fetchGeminiAnalysis(text) {
+          // Injection of student context to Gemini system instructions
+          const systemInstruction = `You are a warm, empathetic older academic mentor who cleared competitive exams (IIT-JEE / Civil Services / CAT) in India years ago. You speak with deep emotional intelligence and maturity to highly stressed student aspirants.
+          
+STUDENT PROFILE CONTEXT:
+- Student Name: ${this.studentName}
+- Target Examination: ${this.examTrack}
+- Daily Study Target: ${this.studyHours} hours
+- Primary Core Stressor: ${this.primaryStressor}
+
+You must tailor your response and advice directly to this context. For example, if their primary stressor is ${this.primaryStressor}, formulate your mentor perspective and coping strategy to help them address it. Speak directly to their name and selected target exam.
+
+Analyze their journal entry. Output a valid, clean JSON object ONLY. Do not include markdown code block characters (\`\`\`).
+The output JSON must follow this exact structure:
+{
+  "mood_score": number (1 to 10, where 1 is calm and 10 is high burnout/severe stress),
+  "dominant_emotion": "A string naming the dominant feeling (e.g. Backlog overload, isolated, parental pressure)",
+  "hidden_trigger": "Brief name of core trigger extracted (e.g. Backlog Pressure, Mock Test Score, Parental Expectations, Physics block)",
+  "empathetic_response": "A highly empathetic, personal supportive message of 3-4 sentences written like a warm Indian mentor (use terms like Beta or listen closely, address them by their first name, and talk about perspective, that exams do not define them)",
+  "micro_action_step": "A 1-minute actionable mental or physical strategy to do right now tailored to their primary stressor",
+  "safety_flag": boolean (set to true ONLY if they indicate self-harm, suicide, extreme despair, or severe clinical burnout crisis)
+}`;
+
+          let resultText = '';
+
+          // 1. Try using the official @google/genai SDK (via CDN window hook)
+          if (window.GoogleGenAI) {
+            try {
+              console.log('Attempting live analysis with @google/genai SDK...');
+              const ai = new window.GoogleGenAI({ apiKey: this.geminiApiKey });
+              const response = await ai.models.generateContent({
+                model: 'gemini-1.5-flash',
+                contents: text,
+                config: {
+                  systemInstruction: systemInstruction,
+                  responseMimeType: 'application/json'
+                }
+              });
+
+              if (response && response.text) {
+                resultText = response.text;
+              } else if (response && response.candidates && response.candidates[0].content.parts[0].text) {
+                resultText = response.candidates[0].content.parts[0].text;
+              }
+            } catch (sdkError) {
+              console.warn('SDK method failed, falling back to direct REST fetch. Error:', sdkError);
+            }
+          }
+
+          // 2. Fallback to direct HTTP REST Fetch if SDK failed or wasn't loaded
+          if (!resultText) {
+            console.log('Using fallback HTTP REST fetch...');
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.geminiApiKey}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: text
+                  }]
+                }],
+                systemInstruction: {
+                  parts: [{
+                    text: systemInstruction
+                  }]
+                },
+                generationConfig: {
+                  responseMimeType: "application/json"
+                }
+              })
+            });
+
+            if (!response.ok) {
+              const errBody = await response.text();
+              throw new Error(`Gemini API HTTP call failed: ${response.statusText}. Details: ${errBody}`);
+            }
+
+            const data = await response.json();
+            resultText = data.candidates[0].content.parts[0].text;
+          }
+
+          // Parse result text (stripping markdown fences if present)
+          resultText = resultText.trim();
+          if (resultText.startsWith('```')) {
+            resultText = resultText.replace(/^```json\s*/, '').replace(/```$/, '').trim();
+          }
+          
+          return JSON.parse(resultText);
+        },
+
+        // Local Heuristic Stress Analysis Engine (WOW factor with custom keyword bindings)
+        generateLocalSimulatedAnalysis(text) {
+          const lower = text.toLowerCase();
+          
+          let score = 5;
+          let trigger = this.primaryStressor;
+          let responseText = '';
+          let strategy = '';
+          let emotion = 'Anxious';
+          let safety = false;
+
+          // Crisis Keywords
+          if (this.crisisKeywords.some(keyword => lower.includes(keyword))) {
+            safety = true;
+          }
+
+          // 1. Evaluate score modifiers
+          if (lower.includes('anxious') || lower.includes('stress') || lower.includes('overwhelm')) {
+            score += 1;
+            emotion = 'Overwhelmed';
+          }
+          if (lower.includes('fail') || lower.includes('bad') || lower.includes('worst') || lower.includes('zero')) {
+            score += 2;
+            emotion = 'Demoralized';
+          }
+          if (lower.includes('cry') || lower.includes('crying') || lower.includes('hopeless')) {
+            score += 2;
+            emotion = 'Isolated';
+          }
+          if (lower.includes('parents') || lower.includes('dad') || lower.includes('mom') || lower.includes('father')) {
+            score += 1;
+            emotion = 'Pressured';
+          }
+          if (lower.includes('sleep') || lower.includes('tired') || lower.includes('insomnia')) {
+            score += 1;
+            emotion = 'Sleep Deprived';
+          }
+          if (lower.includes('backlog') || lower.includes('pending') || lower.includes('syllabus')) {
+            score += 1;
+            emotion = 'Backlog Strained';
+          }
+          
+          score = Math.min(Math.max(score, 1), 10); // clamp 1-10
+
+          const firstName = this.studentName.split(' ')[0];
+
+          // 2. Select primary trigger based on keywords or default onboarding stressor
+          if (lower.includes('mock') || lower.includes('test') || lower.includes('exam') || lower.includes('marks') || lower.includes('rank') || this.primaryStressor === 'Mock Test Scores') {
+            trigger = 'Mock Test Performance';
+            strategy = 'Write down 3 conceptual mistakes you made. Treat them as diagnostics, not marks. Set a 10-minute timer and review just one concept.';
+            
+            if (this.examTrack === 'JEE') {
+              responseText = `Listen closely, ${firstName}. I remember looking at my physics mock scores and feeling absolute panic. But remember, mock tests are designed to mock you—to find your faults before the actual day. They are not final report cards of your intelligence. Focus on why rotational mechanics or chemistry equations slipped, not the marks. You are learning.`;
+            } else if (this.examTrack === 'NEET') {
+              responseText = `Listen to me, ${firstName}. A low score on a Biology or Physics mock does not mean you won\'t wear that white coat. It only tells you which NCERT pages need one more visual scan. Take your eyes off the rank list. Focus on error correction.`;
+            } else if (this.examTrack === 'CAT') {
+              responseText = `Beta ${firstName}, I know looking at CAT QA mock scores can be draining. But remember, CAT rewards accuracy over wild attempts. Focus on accuracy analysis, not raw scores. You are building strategist muscles.`;
+            } else {
+              responseText = `A mock exam is simply a feedback loop. In ${this.examTrack} preparation, every mistake in a mock is one less mistake on the real day. Analyze the answer key with calm curiosity, not self-blame, ${firstName}.`;
+            }
+          } 
+          else if (lower.includes('parents') || lower.includes('dad') || lower.includes('mom') || lower.includes('father') || lower.includes('mother') || this.primaryStressor === 'Parental Pressure') {
+            trigger = 'Parental Expectation Strain';
+            strategy = 'Close your eyes. Draw a circle on a paper. Inside write what you control (your effort today). Outside write what you cannot control (other peoples expectations). Focus on the inside.';
+            responseText = `I understand the heavy burden of family expectations, ${firstName}. Our parents often communicate their fears as pressure. But remember: they love you far more than they love an exam score. If the burden feels too heavy, tell them honestly that you are trying your best and need their patience. You are not alone.`;
+          } 
+          else if (lower.includes('sleep') || lower.includes('tired') || lower.includes('exhausted') || lower.includes('headache')) {
+            trigger = 'Severe Sleep Deprivation';
+            strategy = 'Set an absolute shutdown alarm for 10:30 PM today. No phones, no notes. Drink warm water, and sleep for a full 7.5 hours. Your brain retention requires sleep.';
+            responseText = `Listen to me closely, ${firstName}: studying for ${this.studyHours} hours while sleeping for 4 is a recipe for memory decay. Your brain cements formulas and concepts during REM sleep. Rest is not waste; it is active preparation. Take a complete break tonight and sleep.`;
+          }
+          else if (lower.includes('backlog') || lower.includes('syllabus') || lower.includes('pending') || this.primaryStressor === 'Backlog Anxiety') {
+            trigger = 'Syllabus Backlog Strain';
+            strategy = 'Identify exactly ONE backlog sub-topic (e.g. nomenclature). Set a timer for 20 minutes, study only that, and write a simple summary. Mark it as done.';
+            responseText = `Beta ${firstName}, backlogs are like dust—they pile up if you look at the whole house, but clearing one corner takes minutes. Stop looking at the giant mountain of unfinished syllabus. Choose one simple topic, clear it today, and count that as a massive win. One step.`;
+          }
+          else if (lower.includes('isolated') || lower.includes('alone') || lower.includes('lonely') || lower.includes('friends') || this.primaryStressor === 'Social Isolation') {
+            trigger = 'Social Isolation & Peer Pressure';
+            strategy = 'Call a peer or family member for exactly 5 minutes. Talk about anything except syllabus, coaching ranks, or preparation. Reconnect with the human side.';
+            responseText = `Competitive exams can feel like solitary confinement, but you must remember you are part of a larger world, ${firstName}. Call an old school friend or a cousin. Step out for a 15-minute walk in a park. You need human interaction to break the mental loop.`;
+          }
+          else {
+            trigger = 'General Academic Strain';
+            strategy = 'Do a 2-minute box breathing session. Step away from your study table, stretch your shoulders, and drink a slow glass of water.';
+            responseText = `Preparing for ${this.examTrack} is a long marathon, ${firstName}. It is completely normal to feel flat, overwhelmed, or anxious on some days. Do not judge your progress by a single tough afternoon. You are building resilience that will help you long after this exam is over.`;
+          }
+
+          return {
+            moodScore: score,
+            dominantEmotion: emotion,
+            primaryTrigger: trigger,
+            mentorResponse: responseText,
+            copingStrategy: strategy,
+            safetyFlag: safety
+          };
+        },
+
+        updateLiveDashboardTriggers() {
+          if (!this.analysisResult) return;
+          
+          this.todayStressLevel = this.analysisResult.moodScore;
+
+          // Push to core triggers dynamically
+          const existingTrigger = this.coreTriggers.find(t => t.name === this.analysisResult.primaryTrigger);
+          if (!existingTrigger) {
+            this.coreTriggers.unshift({
+              name: this.analysisResult.primaryTrigger,
+              impact: this.analysisResult.moodScore >= 7 ? 'High' : 'Medium',
+              description: this.analysisResult.dominantEmotion || 'Extracted'
+            });
+            if (this.coreTriggers.length > 4) {
+              this.coreTriggers.pop();
+            }
+          }
+        },
+
+        logAnalysisToDashboard() {
+          if (!this.analysisResult) return;
+          
+          // 1. Shift history and push new
+          this.stressHistory.shift();
+          
+          // Get today's day abbreviation
+          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const todayLabel = days[new Date().getDay()];
+
+          this.stressHistory.push({
+            day: todayLabel,
+            score: this.analysisResult.moodScore,
+            trigger: this.analysisResult.primaryTrigger
+          });
+
+          // Sync variables
+          this.todayStressLevel = this.analysisResult.moodScore;
+          this.updateLiveDashboardTriggers();
+
+          // Trigger alert of success
+          alert('Reflection logged successfully! Check your Dashboard stress trend chart.');
+          
+          // Reset journal and return to dashboard view
+          this.setView('dashboard');
+          this.clearJournal();
+          this.setMotivationalQuote();
+          this.setMentorQuote();
+        },
+
+        // Box Breathing State Machine
+        toggleBreathingCycle() {
+          if (this.breathingActive) {
+            // Stop
+            this.breathingActive = false;
+            clearInterval(this.breathingTimer);
+            this.breathingState = 'idle';
+            this.breathingSeconds = 0;
+          } else {
+            // Start
+            this.breathingActive = true;
+            this.breathingState = 'inhale';
+            this.breathingSeconds = 4;
+            
+            this.breathingTimer = setInterval(() => {
+              this.breathingSeconds -= 1;
+              if (this.breathingSeconds <= 0) {
+                // Change phase
+                this.breathingSeconds = 4;
+                if (this.breathingState === 'inhale') {
+                  this.breathingState = 'hold1';
+                } else if (this.breathingState === 'hold1') {
+                  this.breathingState = 'exhale';
+                } else if (this.breathingState === 'exhale') {
+                  this.breathingState = 'hold2';
+                } else {
+                  this.breathingState = 'inhale';
+                }
+              }
+            }, 1000);
+          }
+        },
+
+        getBreathingCircleClass() {
+          if (!this.breathingActive) return 'idle-circle';
+          if (this.breathingState === 'inhale') return 'inhale-circle';
+          if (this.breathingState === 'hold1') return 'hold-circle';
+          if (this.breathingState === 'exhale') return 'exhale-circle';
+          if (this.breathingState === 'hold2') return 'hold2-circle';
+          return 'idle-circle';
+        },
+
+        getBreathingLabel() {
+          if (!this.breathingActive) return 'Ready to Breathe?';
+          if (this.breathingState === 'inhale') return 'Breathe In Slowly';
+          if (this.breathingState === 'hold1') return 'Hold Your Breath';
+          if (this.breathingState === 'exhale') return 'Exhale Smoothly';
+          if (this.breathingState === 'hold2') return 'Hold Empty';
+          return 'Rest';
+        },
+
+        getBreathingCountdownText() {
+          if (!this.breathingActive) return 'Click Begin to start 2-min cycle';
+          return `${this.breathingSeconds} Seconds remaining`;
+        },
+
+        // Syllabus Decompressor Action
+        decompressSyllabus() {
+          if (!this.decompressTopic.trim()) return;
+
+          this.decompressing = true;
+          this.decompressedSteps = null;
+
+          // Simulated delay for decompression AI
+          setTimeout(() => {
+            const topic = this.decompressTopic.trim();
+            const lower = topic.toLowerCase();
+            
+            let s1 = '', s2 = '', s3 = '';
+
+            if (lower.includes('rotation') || lower.includes('mechanics') || lower.includes('physics')) {
+              s1 = 'Isolate the Free-Body Diagram (FBD) equations of torque. Do not solve full complex pulley problems yet.';
+              s2 = 'Spend exactly 15 minutes reviewing 2 solved exemplar formulas for moment of inertia of basic shapes.';
+              s3 = 'Draw the parallel-axis theorem equation in a giant box on a blank sheet, place it on your wall, and walk away.';
+            } 
+            else if (lower.includes('organic') || lower.includes('chemistry') || lower.includes('bonding')) {
+              s1 = 'Ignore the synthesis mechanisms for now. Write down just 3 functional group structures on a paper.';
+              s2 = 'Set a timer for 15 minutes. Memorize the IUPAC naming priority order list (only the top 5 groups).';
+              s3 = 'Practice naming exactly two 4-carbon chains from the textbook, check the answers, and close the book.';
+            }
+            else if (lower.includes('polity') || lower.includes('laxmikanth') || lower.includes('upsc') || lower.includes('history')) {
+              s1 = 'Focus exclusively on the Fundamental Rights overview page. Do not read the full chapter text.';
+              s2 = 'Spend 15 minutes writing a simple tree diagram connecting Articles 14 through 18 to their titles.';
+              s3 = 'Explain to yourself aloud in 20 seconds what "Right to Equality" implies, then reward yourself with water.';
+            }
+            else {
+              // General syllabus slicing
+              s1 = `Isolate the first sub-heading of "${topic}". Ignore the rest of the pages entirely for today.`;
+              s2 = 'Read that single sub-heading for 15 minutes. Note down exactly 2 core formulas or key definitions.';
+              s3 = 'Solve exactly 1 basic textbook solved example. Close the notebook and take a 5-minute break.';
+            }
+
+            this.decompressedSteps = {
+              step1: s1,
+              step2: s2,
+              step3: s3
+            };
+            this.decompressing = false;
+          }, 1500);
+        },
+
+        // Pep-Talk Generator
+        generatePepTalk() {
+          const talks = {
+            'JEE': [
+              "Listen, Beta. Rotation mechanics or complex integrals are not your enemies. They are just logical puzzles. You've cracked tough concepts before. Go back to the basic definitions. A single mock rank doesn\'t define you. Breathe and solve one concept now.",
+              "HC Verma was written to teach, not to scare. When you get stuck, it\'s an opportunity to learn, not a sign of failure. Focus on the core equations. Consistency always wins. You got this!",
+              "IIT seats are numbers, but your resilience is your life asset. Don\'t let the comparison in coaching centers dull your spark. You are fighting your own race. Win it yard by yard."
+            ],
+            'NEET': [
+              "Beta, NCERT Biology is your blueprint. Don\'t get overwhelmed by massive books. Just capture the diagrams, label them, and revise. The medical profession needs resilient hearts, not just perfect memory charts. Sleep well tonight.",
+              "Human physiology is beautiful. Treat it as a study of life, not just marks. When Physics formulas feel heavy, break them down into basic units. You are going to make a wonderful doctor. Stay patient.",
+              "The NEET path is long, but every revision cycle cements your understanding. A low mock score is just a map of what to revise next. Put the score away, read 2 NCERT pages, and rest."
+            ],
+            'UPSC': [
+              "Clearance of Civil Services requires a stable mind, not just a loaded head. Laxmikanth or Spectrum can feel like mountains. Remember, you only need to master the concepts, not memorize every syllable. Focus on active recall.",
+              "Beta, current affairs backlogs happen to every topper. Don\'t panic. Focus on the core editorial arguments rather than daily factual dumps. You are building administrative caliber here.",
+              "UPSC is as much about emotional stamina as it is about study hours. Keep your weekends light. Reconnect with friends. A healthy brain retains twice as much. Keep going."
+            ],
+            'GATE': [
+              "Engineering concepts are beautiful when seen step-by-step. GATE mock tests are diagnostic tools to locate conceptual gaps. Pinpoint the formula derivations. Do not worry about peer speeds.",
+              "GATE tests pure conceptual depth, not speed reading. Spend time with solved equations. Focus on engineering mathematics and general aptitude first. A steady pace clears the target.",
+              "Your focus on core fundamentals is your real asset. If a numerical is wrong, follow the calculation flow. You are building problem-solving muscles. Believe in your engineering logic."
+            ],
+            'CAT': [
+              "CAT DILR might feel like an unsolvable puzzle today, Beta, but management is about managing chaos. Break down the caselets. You can do this!",
+              "Verbal ability is about pattern reading, not memorizing dictionaries. Read calmly, practice RC sets, and sleep well. Your focus will pay off.",
+              "Percentiles fluctuate in mocks. Don't focus on raw scores; look at your percentile trends and accuracy rates. Accurately target your strong sections."
+            ]
+          };
+
+          const activeTrackTalks = talks[this.pepTalkTrack] || talks['JEE'];
+          this.pepTalkText = activeTrackTalks[Math.floor(Math.random() * activeTrackTalks.length)];
+        },
+
+        // Settings actions
+        saveSettings() {
+          localStorage.setItem('mind_gemini_api_key', this.geminiApiKey);
+          
+          // Save profile object
+          const profileObj = {
+            name: this.studentName,
+            track: this.examTrack,
+            hours: this.studyHours,
+            stressor: this.primaryStressor
+          };
+          localStorage.setItem('mind_student_profile', JSON.stringify(profileObj));
+
+          this.settingsOpen = false;
+          this.setGreeting();
+          this.setMentorQuote();
+          this.generatePepTalk();
+          alert('Settings & profile updated successfully!');
+        },
+
+        // DEMO TRIGGER FOR JUDGES (JEE Aspirant Demo Profile load)
+        loadJEEAspirantDemo() {
+          this.studentName = 'Rohan Sharma';
+          this.examTrack = 'JEE';
+          this.studyHours = 10;
+          this.primaryStressor = 'Mock Test Scores';
+          this.streakCount = 9;
+          this.todayStressLevel = 8;
+          
+          // Stress history showing a peak on Thursday (Mock test drop)
+          this.stressHistory = [
+            { day: 'Mon', score: 5, trigger: 'HC Verma Block' },
+            { day: 'Tue', score: 6, trigger: 'Class backlog pressure' },
+            { day: 'Wed', score: 5, trigger: 'Chemistry revision' },
+            { day: 'Thu', score: 9, trigger: 'Physics Mock Test Drop' },
+            { day: 'Fri', score: 8, trigger: 'Parental expectation pressure' },
+            { day: 'Sat', score: 7, trigger: 'Math syllabus burnout' },
+            { day: 'Sun', score: 8, trigger: 'Sleep exhaustion' }
+          ];
+
+          // Core Triggers list
+          this.coreTriggers = [
+            { name: 'Physics Mock Test Drop', impact: 'High', description: 'Score fell by 20%' },
+            { name: 'Rotational Mechanics Backlog', impact: 'High', description: 'Syllabus gap' },
+            { name: 'Parental Call Pressure', impact: 'Medium', description: 'Comparison triggers' },
+            { name: 'Sleep Deprivation (5 hours)', impact: 'High', description: 'Severe exhaustion' }
+          ];
+
+          // Fill Journal with a stressed JEE aspirant entry
+          this.journalText = `I got my physics mock test marks today and I scored only 32/120. I felt completely blank during the rotation mechanics section. Everyone else in my batch seems to be solving HC Verma easily. My father called in the morning asking if my score would match the cutoff and I couldn't face telling him. I have a huge backlog in organic chemistry reaction mechanisms too. I barely slept 4 hours last night and my head has been hurting all day. I feel so isolated, like I don't belong in this competitive race. I don't know what to do next.`;
+          
+          // Cache demo details
+          const profileObj = {
+            name: this.studentName,
+            track: this.examTrack,
+            hours: this.studyHours,
+            stressor: this.primaryStressor
+          };
+          localStorage.setItem('mind_student_profile', JSON.stringify(profileObj));
+
+          this.hasProfile = true;
+          this.pepTalkTrack = 'JEE';
+          this.setView('journal');
+          this.setGreeting();
+          this.setMotivationalQuote();
+          this.setMentorQuote();
+          this.generatePepTalk();
+          
+          alert('JEE Aspirant Demo Profile loaded! Go ahead and click "Analyze My Day" to test the AI evaluation flow.');
+        }
+
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1735,6 +1735,78 @@ The output JSON must follow this exact structure:
           }
         },
 
+        generateLocalSimulatedAnalysis(text) {
+          const lower = text.toLowerCase();
+          let score = 5;
+          let trigger = this.primaryStressor;
+          let responseText = '';
+          let strategy = '';
+          let emotion = 'Anxious';
+          let safety = false;
+
+          const crisisKeywords = [
+            'suicide', 'kill myself', 'end my life', 'want to die', 
+            'hanging myself', 'ending it', 'self-harm', 'harm myself', 
+            'slit my wrist', 'no point in living', 'better off dead'
+          ];
+          if (crisisKeywords.some(kw => lower.includes(kw))) {
+            safety = true;
+          }
+
+          if (lower.includes('anxious') || lower.includes('stress') || lower.includes('overwhelm')) {
+            score += 1;
+            emotion = 'Overwhelmed';
+          }
+          if (lower.includes('fail') || lower.includes('bad') || lower.includes('worst') || lower.includes('zero')) {
+            score += 2;
+            emotion = 'Demoralized';
+          }
+          if (lower.includes('parents') || lower.includes('dad') || lower.includes('mom') || lower.includes('father')) {
+            score += 1;
+            emotion = 'Pressured';
+          }
+          if (lower.includes('sleep') || lower.includes('tired') || lower.includes('insomnia')) {
+            score += 1;
+            emotion = 'Sleep Deprived';
+          }
+          if (lower.includes('backlog') || lower.includes('pending') || lower.includes('syllabus')) {
+            score += 1;
+            emotion = 'Backlog Strained';
+          }
+          score = Math.min(Math.max(score, 1), 10);
+
+          const firstName = this.studentName.split(' ')[0];
+
+          if (lower.includes('mock') || lower.includes('test') || lower.includes('exam') || lower.includes('marks') || lower.includes('rank') || this.primaryStressor === 'Mock Test Scores') {
+            trigger = 'Mock Test Performance';
+            strategy = 'Write down 3 conceptual mistakes you made. Treat them as diagnostics, not marks. Set a 10-minute timer and review just one concept.';
+            if (this.examTrack === 'JEE') {
+              responseText = `Listen closely, ${firstName}. I remember looking at my physics mock scores and feeling absolute panic. But remember, mock tests are designed to find your faults before the actual day. Focus on why rotational mechanics or chemistry equations slipped, not the marks. You are learning.`;
+            } else {
+              responseText = `A mock exam is simply a feedback loop, ${firstName}. In ${this.examTrack} preparation, every mistake in a mock is one less mistake on the real day. Treat it with calm curiosity, not self-blame.`;
+            }
+          } 
+          else if (lower.includes('parents') || lower.includes('dad') || lower.includes('mom') || lower.includes('father') || lower.includes('mother') || this.primaryStressor === 'Parental Pressure') {
+            trigger = 'Parental Expectation Strain';
+            strategy = 'Close your eyes. Draw a circle on a paper. Inside write what you control (your effort today). Outside write what you cannot control (other peoples expectations). Focus on the inside.';
+            responseText = `I understand the heavy burden of family expectations, ${firstName}. Our parents often communicate their fears as pressure. But remember: they love you far more than they love an exam score. If the burden feels too heavy, tell them honestly that you are trying your best and need their patience. You are not alone.`;
+          } 
+          else {
+            trigger = 'General Academic Strain';
+            strategy = 'Do a 2-minute box breathing session. Step away from your study table, stretch your shoulders, and drink a slow glass of water.';
+            responseText = `Preparing for ${this.examTrack} is a long marathon, ${firstName}. It is completely normal to feel flat, overwhelmed, or anxious on some days. Do not judge your progress by a single tough afternoon. You are building resilience that will help you long after this exam is over.`;
+          }
+
+          return {
+            moodScore: score,
+            dominantEmotion: emotion,
+            primaryTrigger: trigger,
+            mentorResponse: responseText,
+            copingStrategy: strategy,
+            safetyFlag: safety
+          };
+        },
+
         // Live Syllabus De-Compressor using real Gemini call
         async decompressSyllabus() {
           if (!this.decompressTopic.trim()) return;
